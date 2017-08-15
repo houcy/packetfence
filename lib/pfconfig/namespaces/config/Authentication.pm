@@ -46,6 +46,10 @@ sub build_child {
 
     my %cfg = %{ $self->{cfg} };
 
+    foreach my $key ( keys %cfg ) {
+        $self->cleanup_after_read( $key, $cfg{$key} );
+    }
+
     my @authentication_sources = ();
     my %authentication_lookup  = ();
     my %authentication_config_hash = ();
