@@ -165,6 +165,11 @@ sub newAuthenticationSource {
 }
 
 
+sub cleanup_after_read {
+    my ( $self, $id, $data ) = @_;
+    $self->expand_list( $data, qw(realm) );
+}
+
 =head1 AUTHOR
 
 Inverse inc. <info@inverse.ca>
