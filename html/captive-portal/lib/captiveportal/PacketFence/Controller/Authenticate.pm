@@ -103,11 +103,11 @@ sub authenticationLogin : Private {
     my ($stripped_username, $realm) = strip_username($username);
     my $password = $request->param("password");
 
-    my @sources = $self->getSources($c, $username, $realm);
+    my $sources = $self->getSources($c, $username, $realm);
 
     # If all sources use the stripped username, we strip it
     # Otherwise, we leave it as is
-    my $use_stripped = all { isenabled($_->{stripped_user_name}) } @sources;
+    my $use_stripped = all { isenabled($_->{stripped_user_name}) } @{$sources};
     if($use_stripped){
         $username = $stripped_username;
     }
@@ -120,12 +120,12 @@ sub authenticationLogin : Private {
             $username = $1;
         }
         $c->user_session->{username} = $username;
-        $c->user_session->{source_id} = $sources[0]->id;
-        $c->user_session->{source_match} = \@sources;
+        $c->user_session->{source_id} = @{$sources}[0]->id;
+        $c->user_session->{source_match} = $sources;
     } else {
         # validate login and password
         ( $return, $message, $source_id, $extra ) =
-          pf::authentication::authenticate( { 'username' => $username, 'password' => $password, 'rule_class' => $Rules::AUTH }, @sources );
+          pf::authentication::authenticate( { 'username' => $username, 'password' => $password, 'rule_class' => $Rules::AUTH }, @{$sources} );
         if ( defined($return) && $return == 1 ) {
             pf::auth_log::record_auth($source_id, $portalSession->clientMac, $username, $pf::auth_log::COMPLETED);
             # save login into session
@@ -138,7 +138,7 @@ sub authenticationLogin : Private {
             # Logging USER/IP/MAC of the just-authenticated user
             $logger->info("Successfully authenticated ".$username."/".$portalSession->clientIP->normalizedIP."/".$portalSession->clientMac);
         } else {
-            pf::auth_log::record_auth(join(',',map { $_->id } @sources), $portalSession->clientMac, $username, $pf::auth_log::FAILED);
+            pf::auth_log::record_auth(join(',',map { $_->id } @{$sources}), $portalSession->clientMac, $username, $pf::auth_log::FAILED);
             $c->error($message);
         }
     }
@@ -168,12 +168,12 @@ sub getSources : Private {
         }
     }
 
-    my $realm_source = get_realm_authentication_source($stripped_username, $realm, @sources);
+    my $realm_source = get_realm_authentication_source($stripped_username, $realm, \@sources);
     if (ref($realm_source) eq 'ARRAY') {
         $c->log->info("Realm source is part of the connection profile sources. Using it as the only auth source.");
         return ($realm_source);
     }
-    return @sources;
+    return \@sources;
 }
 
 sub _clean_username {
